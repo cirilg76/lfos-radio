@@ -1,0 +1,13 @@
+[Unit]
+Description=LFOS 119.508 - transcription automatique (Whisper)
+After=network-online.target
+
+[Service]
+User=pi
+ExecStart=/home/pi/lfos-radio/venv/bin/python /home/pi/lfos-radio/web/transcribe.py
+Nice=10
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

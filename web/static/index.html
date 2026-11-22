@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LFOS 119.508</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --text: #1b1f24; --muted: #6b7380; --line: #e3e6ea;
+    --accent: #1f6feb; --accent-soft: #e6efff; --live: #d1242f; --bar: #9db8e8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --text: #e6e9ed; --muted: #8b949e; --line: #2a3038;
+      --accent: #4c8dff; --accent-soft: #1b2a44; --live: #ff5c66; --bar: #33507f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 16px; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+  h1 small { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 6px; }
+  .live { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  .live button { border: 0; border-radius: 999px; padding: 8px 16px; font: inherit; cursor: pointer;
+                 background: var(--live); color: #fff; font-weight: 600; }
+  .live button.on { background: var(--text); color: var(--panel); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--live); display: inline-block; margin-right: 6px; background: #fff; }
+  .on .dot { animation: pulse 1.2s infinite; background: var(--live); }
+  @keyframes pulse { 50% { opacity: .25; } }
+  #liveStatus { color: var(--muted); font-size: 13px; }
+  #rxStatus { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  #rxStatus .it { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  #rxStatus b { color: var(--text); font-weight: 600; }
+  #rxStatus .led { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  #rxStatus .ok { background: #2da44e; } #rxStatus .warn { background: #d4a72c; } #rxStatus .bad { background: var(--live); }
+  #rxStatus .tx-on { background: var(--live); animation: pulse .8s infinite; }
+
+  main { display: grid; grid-template-columns: 230px 1fr; gap: 16px; padding: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  #days { padding: 6px; max-height: calc(100vh - 150px); overflow: auto; position: sticky; top: 16px; }
+  #days button { display: flex; justify-content: space-between; width: 100%; border: 0; background: none;
+                 color: var(--text); font: inherit; padding: 8px 10px; border-radius: 7px; cursor: pointer; text-align: left; }
+  #days button:hover { background: var(--bg); }
+  #days button.sel { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  #days .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  #daySelect { display: none; width: 100%; padding: 9px; font: inherit; border-radius: 8px;
+               border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+
+  #content { padding: 16px; min-width: 0; }
+  .dayhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .dayhead h2 { margin: 0; font-size: 18px; }
+  .dayhead h2::first-letter { text-transform: uppercase; }
+  .dayhead .stats { color: var(--muted); font-size: 13px; }
+  .hist { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; align-items: end; height: 70px; margin: 14px 0 2px; }
+  .hist div { background: var(--bar); border-radius: 2px 2px 0 0; min-height: 2px; cursor: pointer; }
+  .hist div.empty { background: var(--line); cursor: default; }
+  .hist div.sel { background: var(--accent); }
+  .hlabels { display: grid; grid-template-columns: repeat(24, 1fr); font-size: 10px; color: var(--muted); text-align: center; }
+  .tools { display: flex; gap: 14px; align-items: center; margin: 12px 0; flex-wrap: wrap; font-size: 14px; }
+  .tools .chip { background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 3px 10px;
+                 border: 0; font: inherit; cursor: pointer; }
+  .tools label { display: flex; gap: 6px; align-items: center; color: var(--muted); cursor: pointer; }
+
+  .hourgroup { margin-top: 14px; }
+  .hourgroup h3 { font-size: 13px; color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
+  .row:hover { background: var(--bg); }
+  .row.playing { background: var(--accent-soft); }
+  .row .play { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 1px solid var(--line);
+               display: grid; place-items: center; background: var(--panel); color: var(--accent); }
+  .row.playing .play { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .row .t { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .row .d { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .row a { margin-left: auto; color: var(--muted); font-size: 13px; text-decoration: none; }
+  .row a:hover { color: var(--accent); }
+  .tx { margin: -2px 8px 6px 50px; font-size: 14px; color: var(--text); overflow-wrap: anywhere; }
+  .tx.wait, .tx.none { color: var(--muted); font-style: italic; font-size: 13px; }
+  .empty-msg { color: var(--muted); padding: 30px 0; text-align: center; }
+
+  #player { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--line);
+            padding: 10px 16px; display: none; }
+  #player.show { display: block; }
+  #player .wrap { display: flex; align-items: center; gap: 12px; }
+  #player .what { white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #player audio { flex: 1; min-width: 0; }
+
+  @media (max-width: 720px) {
+    main { grid-template-columns: 1fr; padding: 12px 16px; }
+    #days { display: none; }
+    #daySelect { display: block; }
+    #player .what { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>LFOS — 119.508 MHz <small>fréquence de l'aérodrome</small></h1>
+    <div class="live">
+      <button id="liveBtn"><span class="dot"></span>Écouter en direct</button>
+      <span id="liveStatus"></span>
+      <audio id="liveAudio" preload="none"></audio>
+    </div>
+    <div id="rxStatus"><span class="it">État du récepteur…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div>
+    <select id="daySelect" aria-label="Jour"></select>
+    <nav id="days" class="panel"></nav>
+  </div>
+  <section id="content" class="panel"><div class="empty-msg">Chargement…</div></section>
+</main>
+
+<div id="player">
+  <div class="wrap">
+    <span class="what" id="nowPlaying"></span>
+    <audio id="audio" controls></audio>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const liveUrl = "/live";
+let status = null;
+let days = [], currentDay = null, items = [], hourFilter = null, playingIdx = -1;
+
+function fmtDur(s) {
+  if (!s) return "";
+  s = Math.round(s);
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`;
+}
+function dayLabel(d, long = true) {
+  const dt = new Date(d + "T12:00:00");
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  const diff = Math.round((today - dt) / 864e5);
+  const base = dt.toLocaleDateString("fr-FR", long
+    ? { weekday: "long", day: "numeric", month: "long", year: "numeric" }
+    : { weekday: "short", day: "numeric", month: "short" });
+  if (diff === 0) return (long ? "Aujourd'hui — " : "Aujourd'hui · ") + base;
+  if (diff === 1) return (long ? "Hier — " : "Hier · ") + base;
+  return base;
+}
+
+async function loadDays() {
+  days = await (await fetch("/api/days")).json();
+  const nav = $("#days"), sel = $("#daySelect");
+  nav.innerHTML = ""; sel.innerHTML = "";
+  if (!days.length) {
+    $("#content").innerHTML = '<div class="empty-msg">Aucun enregistrement pour l\'instant.<br>Les conversations apparaîtront ici dès qu\'elles seront captées.</div>';
+    return;
+  }
+  for (const d of days) {
+    const b = document.createElement("button");
+    b.innerHTML = `<span>${dayLabel(d.day, false)}</span><span class="n">${d.count}</span>`;
+    b.dataset.day = d.day;
+    b.onclick = () => selectDay(d.day);
+    nav.append(b);
+    sel.add(new Option(`${dayLabel(d.day, false)} (${d.count})`, d.day));
+  }
+  sel.onchange = () => selectDay(sel.value);
+  const want = location.hash.slice(1);
+  selectDay(days.some(d => d.day === want) ? want : (currentDay && days.some(d => d.day === currentDay) ? currentDay : days[0].day), true);
+}
+
+async function selectDay(day, keepFilter = false) {
+  if (day !== currentDay) { if (!keepFilter) hourFilter = null; }
+  currentDay = day;
+  history.replaceState(null, "", "#" + day);
+  document.querySelectorAll("#days button").forEach(b => b.classList.toggle("sel", b.dataset.day === day));
+  $("#daySelect").value = day;
+  items = await (await fetch("/api/day/" + day)).json();
+  render();
+}
+
+function render() {
+  const c = $("#content");
+  const perHour = Array(24).fill(0);
+  items.forEach(it => perHour[+it.time.slice(0, 2)]++);
+  const max = Math.max(1, ...perHour);
+  const total = items.reduce((a, it) => a + (it.duration || 0), 0);
+
+  let html = `<div class="dayhead"><h2>${dayLabel(currentDay)}</h2>
+    <span class="stats">${items.length} transmission${items.length > 1 ? "s" : ""} · ${fmtDur(total) || "0 s"} au total</span></div>
+    <div class="hist">${perHour.map((n, h) =>
+      `<div class="${n ? "" : "empty"} ${hourFilter === h ? "sel" : ""}" data-h="${h}" style="height:${n ? 8 + 92 * n / max : 3}%" title="${h} h : ${n} transmission(s)"></div>`).join("")}</div>
+    <div class="hlabels">${perHour.map((_, h) => `<span>${h % 3 === 0 ? h : ""}</span>`).join("")}</div>
+    <div class="tools">
+      ${hourFilter !== null ? `<button class="chip" id="clearHour">${hourFilter} h – ${hourFilter + 1} h ✕</button>` : `<span style="color:var(--muted)">Cliquer sur une barre pour filtrer par heure</span>`}
+      <label><input type="checkbox" id="autoNext" ${localGet("autoNext") !== "0" ? "checked" : ""}> Enchaîner la lecture</label>
+    </div>`;
+
+  const list = items.map((it, i) => ({ ...it, i })).filter(it => hourFilter === null || +it.time.slice(0, 2) === hourFilter);
+  if (!list.length) html += '<div class="empty-msg">Aucune transmission sur cette période.</div>';
+  let lastHour = null;
+  for (const it of list) {
+    const h = it.time.slice(0, 2);
+    if (h !== lastHour) {
+      if (lastHour !== null) html += "</div>";
+      html += `<div class="hourgroup"><h3>${+h} h</h3>`;
+      lastHour = h;
+    }
+    html += `<div class="row ${it.i === playingIdx ? "playing" : ""}" data-i="${it.i}">
+      <span class="play">${it.i === playingIdx ? "❚❚" : "▶"}</span>
+      <span class="t">${it.time}</span><span class="d">${fmtDur(it.duration)}</span>
+      <a href="${it.url}" download title="Télécharger" onclick="event.stopPropagation()">⬇ mp3</a></div>
+      ${it.text === null ? '<div class="tx wait">Transcription en cours…</div>'
+        : it.text ? `<div class="tx">${esc(it.text)}</div>` : '<div class="tx none">(inaudible)</div>'}`;
+  }
+  if (lastHour !== null) html += "</div>";
+  c.innerHTML = html;
+
+  c.querySelectorAll(".hist div:not(.empty)").forEach(b => b.onclick = () => {
+    const h = +b.dataset.h; hourFilter = hourFilter === h ? null : h; render();
+  });
+  const ch = $("#clearHour"); if (ch) ch.onclick = () => { hourFilter = null; render(); };
+  $("#autoNext").onchange = e => localSet("autoNext", e.target.checked ? "1" : "0");
+  c.querySelectorAll(".row").forEach(r => r.onclick = () => {
+    const i = +r.dataset.i;
+    if (i === playingIdx && !$("#audio").paused) $("#audio").pause(); else play(i);
+  });
+}
+
+function play(i) {
+  const it = items[i]; if (!it) return;
+  stopLive();
+  playingIdx = i;
+  const a = $("#audio");
+  if (!a.src.endsWith(it.url)) a.src = it.url;
+  a.play();
+  $("#player").classList.add("show");
+  $("#nowPlaying").textContent = `${new Date(currentDay + "T12:00").toLocaleDateString("fr-FR")} ${it.time}`;
+  render();
+  const row = document.querySelector(`.row[data-i="${i}"]`);
+  if (row) row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+$("#audio").onended = () => {
+  const next = items.findIndex((it, j) => j > playingIdx && (hourFilter === null || +it.time.slice(0, 2) === hourFilter));
+  if ($("#autoNext")?.checked && next !== -1) play(next); else { playingIdx = -1; render(); }
+};
+$("#audio").onpause = () => { if (!$("#audio").ended) { const r = document.querySelector(".row.playing .play"); if (r) r.textContent = "▶"; } };
+$("#audio").onplay = () => { const r = document.querySelector(".row.playing .play"); if (r) r.textContent = "❚❚"; };
+
+// ---- direct ----
+const live = $("#liveAudio"), liveBtn = $("#liveBtn");
+function stopLive() { live.pause(); live.removeAttribute("src"); live.load(); liveBtn.classList.remove("on");
+  liveBtn.innerHTML = '<span class="dot"></span>Écouter en direct'; $("#liveStatus").textContent = ""; }
+liveBtn.onclick = () => {
+  if (liveBtn.classList.contains("on")) return stopLive();
+  $("#audio").pause();
+  live.src = liveUrl + "?t=" + Date.now();
+  $("#liveStatus").textContent = "Connexion…";
+  live.play().then(() => {
+    liveBtn.classList.add("on"); liveBtn.innerHTML = '<span class="dot"></span>Arrêter le direct';
+    $("#liveStatus").textContent = "En direct (seules les transmissions sont audibles, le silence est normal)";
+  }).catch(() => {
+    const why = !status ? "page injoignable"
+      : status.receiver.service !== "active" ? "le récepteur est arrêté"
+      : !status.stream.online ? "le récepteur ne diffuse pas vers Icecast"
+      : "le navigateur n'arrive pas à lire le flux";
+    $("#liveStatus").textContent = `Direct indisponible : ${why}`;
+  });
+};
+
+// ---- état du récepteur ----
+function ago(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return "à l'instant";
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h ${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}`;
+  return `le ${new Date(iso).toLocaleDateString("fr-FR")} à ${iso.slice(11, 16)}`;
+}
+const item = (cls, html, title = "") => `<span class="it" title="${title}"><span class="led ${cls}"></span>${html}</span>`;
+async function loadStatus() {
+  try { status = await (await fetch("/api/status", { cache: "no-store" })).json(); }
+  catch { status = null; $("#rxStatus").innerHTML = item("bad", "<b>Serveur injoignable</b>"); return; }
+  const rx = status.receiver, st = status.stream, tr = status.transcription;
+  const alive = rx.service === "active" && rx.stats_age !== null && rx.stats_age < 30;
+  let h;
+  if (rx.service !== "active") h = item("bad", "Récepteur : <b>arrêté</b>");
+  else if (!alive) h = item("warn", "Récepteur : <b>ne répond plus</b>", "Le service tourne mais n'envoie plus de mesures (clé SDR débranchée ?)");
+  else if (rx.squelch_open) h = item("tx-on", "Récepteur : <b>quelqu'un parle</b>", `Signal ${rx.signal_dbfs.toFixed(0)} dBFS`);
+  else h = item("ok", `Récepteur : <b>en écoute</b> · bruit ${rx.noise_dbfs.toFixed(0)} dBFS`,
+                "Niveau de bruit de fond sur 119.508 MHz. Une transmission s'enregistre quand le signal dépasse nettement ce niveau.");
+  if (alive && rx.overflows) h += item("warn", `${rx.overflows} saturation${rx.overflows > 1 ? "s" : ""} du tampon`, "Le PC n'a pas suivi le flux du récepteur");
+  h += item(st.online ? "ok" : "bad", st.online
+    ? `Direct : <b>diffusé</b>${st.listeners ? ` · ${st.listeners} auditeur${st.listeners > 1 ? "s" : ""}` : ""}`
+    : "Direct : <b>coupé</b>");
+  if (status.last_recording) h += item("", `Dernière transmission : <b>${ago(status.last_recording)}</b>`);
+  h += item(tr.service === "active" ? "ok" : "bad", tr.service !== "active" ? "Transcription : <b>arrêtée</b>"
+    : tr.queue ? `Transcription : <b>${tr.queue} en attente</b>` : "Transcription : <b>à jour</b>");
+  $("#rxStatus").innerHTML = h;
+}
+loadStatus();
+setInterval(loadStatus, 5000);
+
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function localGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function localSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+
+loadDays();
+// rafraîchit la liste toutes les 30 s (sans couper la lecture)
+setInterval(async () => {
+  const before = JSON.stringify(days);
+  const fresh = await (await fetch("/api/days")).json();
+  if (JSON.stringify(fresh) !== before) {
+    const keep = items.length;
+    await loadDays();
+    if (items.length !== keep) render();
+  } else if (currentDay && items.some(it => it.text === null)) {
+    // des transcriptions sont en attente : on les récupère quand elles arrivent
+    const fresh = await (await fetch("/api/day/" + currentDay)).json();
+    if (JSON.stringify(fresh) !== JSON.stringify(items)) { items = fresh; render(); }
+  }
+}, 30000);
+</script>
+</body>
+</html>

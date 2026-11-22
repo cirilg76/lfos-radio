@@ -1,0 +1,56 @@
+# Écoute et enregistrement de la fréquence de LFOS (119.508 MHz, canal 8.33 kHz "119.510")
+# Récepteur : SDRplay RSP1A via SoapySDR
+
+localtime = true;   # noms de fichiers en heure locale (France)
+
+# état du récepteur, lu par la page web (niveaux de bruit/signal, compteurs)
+stats_filepath = "/home/pi/lfos-radio/stats.txt";
+stats_update_interval = 5;
+
+devices: (
+  {
+    type = "soapysdr";
+    device_string = "driver=sdrplay";
+    # Gain fixe. IFGR : réduction de gain FI (20 à 59, plus petit = plus de gain)
+    #             RFGR : réduction de gain LNA (0 à 9 sur RSP1A, plus petit = plus de gain)
+    gain = "IFGR=40,RFGR=2";
+    # La fréquence centrale est décalée pour éviter le pic parasite au centre du spectre
+    centerfreq = 119.2;
+    sample_rate = 2.0;
+    correction = 0;
+
+    channels: (
+      {
+        freq = 119.50833;
+        label = "LFOS";
+        modulation = "am";
+        # squelch automatique (s'ouvre quand quelqu'un parle). Pour le rendre plus
+        # ou moins sensible, décommenter et ajuster (en dB, défaut ~ 9.54) :
+        # squelch_snr_threshold = 8.0;
+
+        outputs: (
+          {
+            # un fichier MP3 par transmission : LFOS_AAAAMMJJ_HHMMSS.mp3
+            type = "file";
+            directory = "/home/pi/lfos-radio/recordings";
+            filename_template = "LFOS";
+            dated_subdirectories = true;
+            split_on_transmission = true;
+            include_freq = false;
+          },
+          {
+            # écoute en direct via Icecast (http://<machine>:8000/lfos)
+            type = "icecast";
+            server = "127.0.0.1";
+            port = 8000;
+            mountpoint = "lfos";
+            username = "source";
+            password = "CHANGE_MOI";   # mot de passe "source" de ton Icecast (/etc/icecast2/icecast.xml)
+            name = "LFOS 119.508";
+            genre = "ATC";
+          }
+        );
+      }
+    );
+  }
+);

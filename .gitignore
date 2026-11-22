@@ -1,0 +1,11 @@
+# code tiers (téléchargé par install.sh) et pilote SDRplay propriétaire
+src/
+venv/
+# enregistrements radio, transcriptions et état du récepteur : ne jamais publier
+recordings/
+logs/
+stats.txt
+# config locale (contient le mot de passe source d'Icecast) -> voir rtl_airband.conf.example
+rtl_airband.conf
+__pycache__/
+*.pyc
